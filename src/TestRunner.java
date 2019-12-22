@@ -1,41 +1,63 @@
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
 
 public class TestRunner {
 
     File testFile = new File("temp" + File.separator + "test.txt");
+    File testFile2 = new File("temp" + File.separator + "test2.txt");
+    File testFile3 = new File("temp" + File.separator + "test3.txt");
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, NoSuchAlgorithmException {
         System.out.println("Running tests...");
         TestRunner testRunner = new TestRunner();
         testRunner.runTests();
     }
 
-    public void runTests() throws IOException {
-        createTestFileIFNeeded();
-        testCopyWorksInExpectedCase();
-        testCopyFailsWhenTargetFileExists();
+    private static void verify(Boolean bool, String errorMessage) {
+        if (!bool) throw new AssertionError(errorMessage);
     }
 
-    private void createTestFileIFNeeded() throws IOException {
-        if (!testFile.exists()) {
-            System.out.println("    Writing test file to " + testFile.getAbsolutePath());
-            testFile.getParentFile().mkdirs();
-            FileWriter writer = new FileWriter(testFile);
-            writer.write("This file exists to test I/O operations.\n");
+    public void runTests() throws IOException, NoSuchAlgorithmException {
+        createTestFilesIFNeeded();
+        testSha256works();
+        testCopyWorksInExpectedCase();
+        testCopyFailsWhenTargetFileExists();
+        System.out.println("************* A-OK! All tests completed successfully. *********************");
+    }
+
+    private void testSha256works() throws IOException, NoSuchAlgorithmException {
+        verify(Utils.sha256(testFile).equals("p6sSQjqnaFD1qBTayeVQ379vIdsQorixYFMd7CmJdK8="), "Sha256 of testFile does not match expected (hardcoded) value.");
+        verify(!Utils.sha256(testFile).equals(Utils.sha256(testFile2)), "Sha256 function returns same hash for 2 different files.");
+        verify(Utils.sha256(testFile).equals(Utils.sha256(testFile3)), "Sha256 function does not return the same hash for 2 files with identical content.");
+    }
+
+    private void createTestFilesIFNeeded() throws IOException {
+        createTestFileIFNotExist(testFile, "This file exists to test I/O operations.\n");
+        createTestFileIFNotExist(testFile2, "This file exists to test I/O operations. It has slightly different content than the first test file.\n");
+        // testFile3 has same content as testFile to verify that sha256 calculation returns same hash for both files.
+        createTestFileIFNotExist(testFile3, "This file exists to test I/O operations.\n");
+    }
+
+    private void createTestFileIFNotExist(File file, String content) throws IOException {
+        if (!file.exists()) {
+            System.out.println("    Writing test file to " + file.getAbsolutePath());
+            file.getParentFile().mkdirs();
+            FileWriter writer = new FileWriter(file);
+            writer.write(content);
             writer.close();
         }
     }
 
-    private void testCopyWorksInExpectedCase() throws IOException {
+    private void testCopyWorksInExpectedCase() throws IOException, NoSuchAlgorithmException {
         System.out.println("Testing copy");
         File copyOfTestFile = new File("temp" + File.separator + "test-" + Utils.timestamp() + ".txt");
         System.out.println("    Copying test file");
         System.out.println("        from " + testFile.getAbsolutePath());
         System.out.println("        to " + copyOfTestFile.getAbsolutePath());
         Utils.copy(testFile, copyOfTestFile);
-        // TODO compare sha256 of original and copied file
+        verify(Utils.sha256(testFile).equals(Utils.sha256(copyOfTestFile)), "Copied file does not have same content as original!");
     }
 
     private void testCopyFailsWhenTargetFileExists() throws IOException {
