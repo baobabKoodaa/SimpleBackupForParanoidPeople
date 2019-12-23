@@ -21,23 +21,23 @@ public class TestRunner {
 
     public void runTests() throws IOException, NoSuchAlgorithmException {
         createTestFilesIFNeeded();
-        testSha256works();
+        testSha256();
         testCopyWorksInExpectedCase();
         testCopyFailsWhenTargetFileExists();
         System.out.println("************* A-OK! All tests completed successfully. *********************");
     }
 
-    private void testSha256works() throws IOException, NoSuchAlgorithmException {
-        verify(Utils.sha256(testFile).equals("p6sSQjqnaFD1qBTayeVQ379vIdsQorixYFMd7CmJdK8="), "Sha256 of testFile does not match expected (hardcoded) value.");
+    private void testSha256() throws IOException, NoSuchAlgorithmException {
+        verify(Utils.sha256(testFile).equals("G2+wiXqQEzErf83zrdFlMsShcXwf64nUG5m3z1dPrXQ="), "Sha256 of testFile does not match expected (hardcoded) value.");
         verify(!Utils.sha256(testFile).equals(Utils.sha256(testFile2)), "Sha256 function returns same hash for 2 different files.");
         verify(Utils.sha256(testFile).equals(Utils.sha256(testFile3)), "Sha256 function does not return the same hash for 2 files with identical content.");
     }
 
     private void createTestFilesIFNeeded() throws IOException {
-        createTestFileIFNotExist(testFile, "This file exists to test I/O operations.\n");
-        createTestFileIFNotExist(testFile2, "This file exists to test I/O operations. It has slightly different content than the first test file.\n");
+        createTestFileIFNotExist(testFile, "This file exists to test I/O operations.");
+        createTestFileIFNotExist(testFile2, "This file exists to test I/O operations. It has slightly different content than the first test file.");
         // testFile3 has same content as testFile to verify that sha256 calculation returns same hash for both files.
-        createTestFileIFNotExist(testFile3, "This file exists to test I/O operations.\n");
+        createTestFileIFNotExist(testFile3, "This file exists to test I/O operations.");
     }
 
     private void createTestFileIFNotExist(File file, String content) throws IOException {
