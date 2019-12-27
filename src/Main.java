@@ -1,21 +1,15 @@
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Optional;
-import java.util.Scanner;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.security.NoSuchAlgorithmException;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.net.URI;
 
 public class Main {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException, NoSuchAlgorithmException {
         System.out.println("hello world " + System.getProperty("user.dir"));
         Scanner scanner = new Scanner(System.in);
 
@@ -72,7 +66,37 @@ public class Main {
         }
     }
 
-    public static void createBackup(String checkListFilePath) {
+    public static void createBackup(String checkListFilePath) throws IOException, NoSuchAlgorithmException {
+        Set<BackupTargetFile> allTargets = collectAllFilesFromCheckListTargetPaths(checkListFilePath);
+        printBackupSizeInfo(allTargets);
+
+        for (BackupTargetFile btf : allTargets) {
+            String hash = Utils.sha256(btf.originPath.toFile());
+            System.out.println("SHA256 for " + btf.originPath.toString() + " is " + hash);
+        }
+    }
+
+    public static void printBackupSizeInfo(Set<BackupTargetFile> allTargets) {
+        long totalBytesNeeded = 0;
+        for (BackupTargetFile btf : allTargets) {
+            totalBytesNeeded += btf.sizeBytes;
+        }
+        System.out.println("Number of target files to backup: " + allTargets.size() + ", totaling " + (totalBytesNeeded * 1.0 / 1e9) + " GB.");
+    }
+
+    public static Set<BackupTargetFile> collectAllFilesFromCheckListTargetPaths(String checkListFilePath) throws IOException {
+        Set<BackupTargetFile> allTargets = new HashSet<>();
+        Set<String> targetPathStrings = getTargetPathStringsFromCheckList(checkListFilePath);
+        final AtomicLong counter = new AtomicLong();
+        for (String targetPathString : targetPathStrings) {
+            Path targetPath = new File(targetPathString).toPath();
+            collectAllFilesFromTargetPath(targetPath, allTargets, counter);
+        }
+        return allTargets;
+    }
+
+    public static Set<String> getTargetPathStringsFromCheckList(String checkListFilePath) throws IOException {
+        Set<String> targetPathStrings = new HashSet<>();
         File checkListFile = new File(checkListFilePath);
         if (!checkListFile.exists()) {
             throw new IllegalArgumentException("File not found: " + checkListFile.getAbsolutePath());
@@ -84,30 +108,31 @@ public class Main {
                 //     Example 1: "D:\music" may be a directory with many files within nested subdirectories.
                 //     Example 2: "D:\song.mp3" may be a single file. It can be treated as the root of a file tree which contains 1 file. // TODO test that this doesnt include the surrounding folder etc.
                 String line = br.readLine();
-                if (line == null) break;
+                if (line == null)
+                    break;
                 line = line.replace("\uFEFF", ""); // Remove UTF-8 BOM
                 line = line.replace(" ", "%20");
-
-                // We want to collect all paths from the file tree represented by line.
-                Stream<Path> pathStream = Files.walk(new File(line).toPath());
-                final AtomicLong counter = new AtomicLong();
-                Optional<Pair> jobSize = pathStream
-                        .peek(stat -> {
-                            if (counter.incrementAndGet() % 5000 == 0) {
-                                // TODO use systemTime to avoid spamming too many messages?
-                                System.out.println(counter.get() + " files discovered.");
-                            }
-                        })
-                        .filter(path -> !path.toFile().isDirectory())
-                        .map(path -> new Pair(path.toFile().length(), 1))
-                        .reduce((pair1, pair2) -> new Pair(pair1.size + pair2.size, pair1.count + pair2.count));
-                System.out.println("Total files in " + line + " ===> " + jobSize.get().count + " totaling size " + (jobSize.get().size * 1.0 / 1e9) + " GB");
+                targetPathStrings.add(line);
             }
-        } catch (IOException e) {
-            e.printStackTrace();
         }
+        return targetPathStrings;
     }
 
+    public static void collectAllFilesFromTargetPath(Path targetPath, Set<BackupTargetFile> allTargets, AtomicLong counter) throws IOException {
+        try (Stream<Path> pathStream = Files.walk(targetPath)) {
+            Set<BackupTargetFile> targets = pathStream
+                    .peek(stat -> {
+                        if (counter.incrementAndGet() % 20000 == 0) {
+                            // TODO use systemTime to avoid spamming too many messages?
+                            System.out.println(counter.get() + " files discovered.");
+                        }
+                    })
+                    .filter(path -> !path.toFile().isDirectory())
+                    .map(path -> new BackupTargetFile(path, path.toFile().length()))
+                    .collect(Collectors.toSet());
+            allTargets.addAll(targets);
+        }
+    }
 }
 
 class Pair {
@@ -117,5 +142,28 @@ class Pair {
     public Pair(long size, long count) {
         this.size = size;
         this.count = count;
+    }
+}
+
+class BackupTargetFile {
+    Path originPath;
+    long sizeBytes; // It's ok if size is not always 100% accurate, we use it to measure progress etc.
+
+    public BackupTargetFile(Path originPath, long sizeBytes) {
+        this.originPath = originPath;
+        this.sizeBytes = sizeBytes;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        BackupTargetFile that = (BackupTargetFile) o;
+        return originPath.equals(that.originPath);
+    }
+
+    @Override
+    public int hashCode() {
+        return originPath.toString().hashCode();
     }
 }
