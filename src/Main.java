@@ -13,7 +13,8 @@ public class Main {
         }
 
         // Without arguments: enter command line UI
-        UI.runUI();
+        UI ui = new UI();
+        ui.launch();
     }
 }
 
