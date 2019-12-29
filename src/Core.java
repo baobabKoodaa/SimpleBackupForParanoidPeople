@@ -95,9 +95,6 @@ public class Core {
         // TODO refactor filereaders into a method which returns list of strings.
         try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(latestSnapshotFile), "UTF-8"))) {
             while (true) {
-                // Each line represents a root of a file tree.
-                //     Example 1: "D:\music" may be a directory with many files within nested subdirectories.
-                //     Example 2: "D:\song.mp3" may be a single file. It can be treated as the root of a file tree which contains 1 file. // TODO test that this doesnt include the surrounding folder etc.
                 String line = br.readLine();
                 if (line == null) break;
                 line = line.replace("\uFEFF", ""); // Remove UTF-8 BOM
