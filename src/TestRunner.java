@@ -28,7 +28,7 @@ public class TestRunner {
     }
 
     private void testSha256() throws IOException, NoSuchAlgorithmException {
-        verify(Utils.sha256(testFile).equals("G2+wiXqQEzErf83zrdFlMsShcXwf64nUG5m3z1dPrXQ="), "Sha256 of testFile does not match expected (hardcoded) value.");
+        verify(Utils.sha256(testFile).equals("1B6FB0897A9013312B7FCDF3ADD16532C4A1717C1FEB89D41B99B7CF574FAD74"), "Sha256 of testFile does not match expected (hardcoded) value.");
         verify(!Utils.sha256(testFile).equals(Utils.sha256(testFile2)), "Sha256 function returns same hash for 2 different files.");
         verify(Utils.sha256(testFile).equals(Utils.sha256(testFile3)), "Sha256 function does not return the same hash for 2 files with identical content.");
     }
