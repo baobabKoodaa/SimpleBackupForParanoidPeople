@@ -70,9 +70,15 @@ public class Main {
         Set<BackupTargetFile> allTargets = collectAllFilesFromCheckListTargetPaths(checkListFilePath);
         printBackupSizeInfo(allTargets);
 
+        // TODO initialize snapshot
         for (BackupTargetFile btf : allTargets) {
             String hash = Utils.sha256(btf.originPath.toFile());
             System.out.println("SHA256 for " + btf.originPath.toString() + " is " + hash);
+            // TODO file (write-)lock from beginning of SHA to the end of copy?
+            // TODO start copying file into backupDir\files\writing-<hash>-<timestamp>.tmp
+            // TODO once copy is finished rename file (safely) into backupDir\files\<hash>
+            // TODO add file to snapshot
+            // TODO progress indication based on both number of files and total size
         }
     }
 
@@ -81,7 +87,7 @@ public class Main {
         for (BackupTargetFile btf : allTargets) {
             totalBytesNeeded += btf.sizeBytes;
         }
-        System.out.println("Number of target files to backup: " + allTargets.size() + ", totaling " + (totalBytesNeeded * 1.0 / 1e9) + " GB.");
+        System.out.println("Number of target files to backup: " + allTargets.size() + ", totaling " + Utils.formatSize(totalBytesNeeded));
     }
 
     public static Set<BackupTargetFile> collectAllFilesFromCheckListTargetPaths(String checkListFilePath) throws IOException {
@@ -153,6 +159,10 @@ class BackupTargetFile {
         this.originPath = originPath;
         this.sizeBytes = sizeBytes;
     }
+
+    // Two files are considered equal if their originPath is equal.
+    // If originPath is the same but size is different, it indicates that the file was changed.
+    // In any case we only want to keep a single BackupTargetFile per originPath.
 
     @Override
     public boolean equals(Object o) {

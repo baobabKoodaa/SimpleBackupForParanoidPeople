@@ -38,4 +38,20 @@ public class Utils {
         // Return hash as base64-encoded string.
         return new String(Base64.getEncoder().encode(hash));
     }
+
+    public static String formatSize(double bytes) {
+        long kib = 1024;
+        if (bytes < kib) return bytes + " B";
+        long mib = 1024 * kib;
+        if (bytes < mib) return round2(bytes / kib) + " KiB";
+        long gib = 1024 * mib;
+        if (bytes < gib) return round2(bytes / mib) + " MiB";
+        long tib = 1024 * gib;
+        if (bytes < tib) return round2(bytes / gib) + " GiB";
+        return round2(bytes / tib) + " TiB";
+    }
+
+    public static String round2(double val) {
+        return String.format("%.2f", val);
+    }
 }
