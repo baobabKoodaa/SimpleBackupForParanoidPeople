@@ -1,6 +1,8 @@
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.rmi.UnexpectedException;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -14,8 +16,8 @@ public class Main {
         Scanner scanner = new Scanner(System.in);
 
         // With arguments: run a specific action
-        if (args.length > 0) {
-            createBackup(args[0]);
+        if (args.length >= 2) {
+            createBackup(args[0], args[1]);
             return;
         }
 
@@ -42,7 +44,7 @@ public class Main {
 
             // Execute user input
             if (choice == 1) {
-                System.out.println("Please enter path to checklist file. If you need more instructions, enter 'help'.");
+                System.out.println("FROM: Please enter path to checklist file. If you need more instructions, enter 'help'.");
                 String checkListPath = scanner.next();
                 if (checkListPath.equals("help")) {
                     System.out.println("A checklist file contains paths to the files or folders that you wish to backup.");
@@ -52,7 +54,16 @@ public class Main {
                     System.out.println("Please enter path to checklist file.");
                     checkListPath = scanner.next();
                 }
-                createBackup(checkListPath);
+                if (!new File(checkListPath).isFile()) {
+                    System.out.println("Error! Given path does not correspond to a checklist file: " + new File(checkListPath).getAbsolutePath());
+                    continue;
+                }
+                System.out.println("TO: Please enter path to backup repository (where your backup will be stored, e.g. E:\\backup).");
+                String repositoryPath = scanner.next();
+                if (!new File(repositoryPath).isDirectory()) {
+                    System.out.println("Error! Given path is not an existing directory: " + new File(repositoryPath).getAbsolutePath());
+                }
+                createBackup(checkListPath, repositoryPath);
             } else if (choice == 2) {
 
             } else if (choice == 3) {
@@ -66,20 +77,34 @@ public class Main {
         }
     }
 
-    public static void createBackup(String checkListFilePath) throws IOException, NoSuchAlgorithmException {
+    public static void createBackup(String checkListFilePath, String repositoryPath) throws IOException, NoSuchAlgorithmException {
         Set<BackupTargetFile> allTargets = collectAllFilesFromCheckListTargetPaths(checkListFilePath);
         printBackupSizeInfo(allTargets);
-
-        // TODO initialize snapshot
-        for (BackupTargetFile btf : allTargets) {
-            String hash = Utils.sha256(btf.originPath.toFile());
-            System.out.println("SHA256 for " + btf.originPath.toString() + " is " + hash);
-            // TODO file (write-)lock from beginning of SHA to the end of copy?
-            // TODO start copying file into backupDir\files\writing-<hash>-<timestamp>.tmp
-            // TODO once copy is finished rename file (safely) into backupDir\files\<hash>
-            // TODO add file to snapshot
-            // TODO progress indication based on both number of files and total size
+        File snapshotFile = initializeSnapshot(repositoryPath);
+        try (BufferedWriter snapshotWriter = new BufferedWriter(new FileWriter(snapshotFile, StandardCharsets.UTF_8))) {
+            for (BackupTargetFile btf : allTargets) {
+                String hash = Utils.sha256(btf.originPath.toFile());
+                // TODO file (write-)lock from beginning of SHA to the end of copy?
+                // TODO start copying file into backupDir\files\writing-<hash>-<timestamp>.tmp
+                // TODO once copy is finished rename file (safely) into backupDir\files\<hash>
+                snapshotWriter.write(btf.originPath.toString() + Utils.SEPARATOR_BETWEEN_PATH_AND_HASH + hash + "\n");
+                // TODO progress indication based on both number of files and total size
+            }
         }
+    }
+
+    public static File initializeSnapshot(String repositoryPath) throws UnexpectedException {
+        File snapshotFile = new File(repositoryPath + File.separator + "snapshot-" + Utils.timestamp() + ".txt");
+        if (snapshotFile.exists()) {
+            // Safety precaution
+            throw new UnexpectedException(
+                    "Unable to create snapshot file, because file already exists: "
+                            + snapshotFile.getAbsolutePath()
+                            + "\nCheck that your computer's clock is operating normally and try again."
+            );
+        }
+        System.out.println("Creating snapshot file in " + snapshotFile.getAbsolutePath());
+        return snapshotFile;
     }
 
     public static void printBackupSizeInfo(Set<BackupTargetFile> allTargets) {

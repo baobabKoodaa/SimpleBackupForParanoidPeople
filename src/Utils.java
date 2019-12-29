@@ -13,6 +13,8 @@ public class Utils {
 
     // Path target = null;//newdir.resolve(SHA256xx);
 
+    public static String SEPARATOR_BETWEEN_PATH_AND_HASH = " /// ";
+
     public static void copy(File source, File target) throws IOException {
         Files.copy(source.toPath(), target.toPath(), COPY_ATTRIBUTES);
     }
