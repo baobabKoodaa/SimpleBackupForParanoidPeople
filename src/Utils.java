@@ -68,4 +68,9 @@ public class Utils {
     public static String round2(double val) {
         return String.format("%.2f", val);
     }
+
+    public static String nicePercent(double val) {
+        double rounded = Math.round(10000 * val) / 10000 * 100;
+        return rounded + "%";
+    }
 }

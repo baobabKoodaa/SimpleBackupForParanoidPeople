@@ -81,11 +81,13 @@ public class Main {
     public static void createBackup(String checkListFilePath, String repositoryPath) throws IOException, NoSuchAlgorithmException {
         String timestampAtStart = Utils.timestamp();
         List<BackupTargetFile> allTargets = collectAllFilesFromCheckListTargetPaths(checkListFilePath);
-        printBackupSizeInfo(allTargets);
+        Pair job = calculateJobSize(allTargets);
+        System.out.println("Number of target files to backup: " + job.count + ", totaling " + Utils.formatSize(job.size));
         File snapshotFile = initializeSnapshot(repositoryPath, timestampAtStart);
         File repoFilesDir = initializeFilesDirectory(repositoryPath);
         Set<String> existing = loadKnownSetOfAlreadyBackupedUpFilesHashes(repoFilesDir);
         try (BufferedWriter snapshotWriter = new BufferedWriter(new FileWriter(snapshotFile, StandardCharsets.UTF_8))) {
+            ProgressIndicator progressIndicator = new ProgressIndicator(job);
             for (BackupTargetFile btf : allTargets) {
                 // TODO file (write-)lock from beginning of SHA to the end of copy?
                 String hash = Utils.sha256(btf.originPath.toFile());
@@ -108,8 +110,9 @@ public class Main {
 
                 // Now that file exists in backup repository, append path/hash pair to current snapshot.
                 snapshotWriter.write(btf.originPath.toString() + Utils.SEPARATOR_BETWEEN_PATH_AND_HASH + hash + "\n");
-                // TODO progress indication based on both number of files and total size
+                progressIndicator.tick(btf.sizeBytes);
             }
+            progressIndicator.done();
         }
     }
 
@@ -146,12 +149,12 @@ public class Main {
         }
     }
 
-    public static void printBackupSizeInfo(Collection<BackupTargetFile> allTargets) {
+    public static Pair calculateJobSize(Collection<BackupTargetFile> allTargets) {
         long totalBytesNeeded = 0;
         for (BackupTargetFile btf : allTargets) {
             totalBytesNeeded += btf.sizeBytes;
         }
-        System.out.println("Number of target files to backup: " + allTargets.size() + ", totaling " + Utils.formatSize(totalBytesNeeded));
+        return new Pair(totalBytesNeeded, allTargets.size());
     }
 
     public static List<BackupTargetFile> collectAllFilesFromCheckListTargetPaths(String checkListFilePath) throws IOException {
