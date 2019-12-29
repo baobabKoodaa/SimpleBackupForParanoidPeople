@@ -63,6 +63,7 @@ public class Main {
                 if (!new File(repositoryPath).isDirectory()) {
                     System.out.println("Error! Given path is not an existing directory: " + new File(repositoryPath).getAbsolutePath());
                 }
+                // TODO verify from user that interpreted paths are ok
                 createBackup(checkListPath, repositoryPath);
             } else if (choice == 2) {
 
@@ -83,31 +84,37 @@ public class Main {
         printBackupSizeInfo(allTargets);
         File snapshotFile = initializeSnapshot(repositoryPath, timestampAtStart);
         File repoFilesDir = initializeFilesDirectory(repositoryPath);
-        // TODO load known set of hashes from files directory filenames
+        Set<String> existing = loadKnownSetOfAlreadyBackupedUpFilesHashes(repoFilesDir);
         try (BufferedWriter snapshotWriter = new BufferedWriter(new FileWriter(snapshotFile, StandardCharsets.UTF_8))) {
             for (BackupTargetFile btf : allTargets) {
-                String hash = Utils.sha256(btf.originPath.toFile());
                 // TODO file (write-)lock from beginning of SHA to the end of copy?
-                // TODO check if hash already exists in known set
-                // TODO add hash to known set
-                File originalFile = btf.originPath.toFile();
-                File copyOfFile = new File(repoFilesDir.getAbsolutePath() + File.separator + "temp-" + hash + "-" + timestampAtStart + ".tmp");
-                if (copyOfFile.exists()) {
-                    throw new UnexpectedException("We were about to copy a file to a temporary path, but the path already has an existing file." +
-                            "As a precaution we do not overwrite the path: " + copyOfFile.getAbsolutePath() +
-                            "\nThis error might occur if the clock in your computer is not operating normally or if this software has a bug.");
+                String hash = Utils.sha256(btf.originPath.toFile());
+                if (!existing.contains(hash)) {
+                    // File does not already exist in backup repository, so we need to copy it.
+                    // We want to copy the file under a temp name first, because the copy might fail and in that case
+                    // we want the file name to indicate that this partial/failed copy is not a proper copy of the file.
+                    File originalFile = btf.originPath.toFile();
+                    File copyOfFile = new File(repoFilesDir.getAbsolutePath() + File.separator + "temp-" + hash + "-" + timestampAtStart + ".tmp");
+                    if (copyOfFile.exists()) {
+                        throw new UnexpectedException("We were about to copy a file to a temporary path, but the path already has an existing file." +
+                                "As a precaution we do not overwrite the path: " + copyOfFile.getAbsolutePath() +
+                                "\nThis error might occur if the clock in your computer is not operating normally or if this software has a bug.");
+                    }
+                    Utils.copy(originalFile, copyOfFile);
+                    // Once copy has finished successfully, attempt to rename the file to just the hash (no extension).
+                    Files.move(copyOfFile.toPath(), copyOfFile.toPath().resolveSibling(hash));
                 }
-                Utils.copy(originalFile, copyOfFile);
+                existing.add(hash);
 
-                // TODO once copy is finished rename file (safely) into backupDir\files\<hash>
+                // Now that file exists in backup repository, append path/hash pair to current snapshot.
                 snapshotWriter.write(btf.originPath.toString() + Utils.SEPARATOR_BETWEEN_PATH_AND_HASH + hash + "\n");
                 // TODO progress indication based on both number of files and total size
             }
         }
     }
 
-    public static File initializeSnapshot(String repositoryPath, String timestamp) throws UnexpectedException {
-        File snapshotFile = new File(repositoryPath + File.separator + "snapshot-" + timestamp + ".txt");
+    public static File initializeSnapshot(String repositoryPath, String timestamp) throws IOException {
+        File snapshotFile = new File(repositoryPath + File.separator + "filepath-snapshots" + File.separator + "snapshot-" + timestamp + ".txt");
         if (snapshotFile.exists()) {
             // Safety precaution
             throw new UnexpectedException(
@@ -117,13 +124,26 @@ public class Main {
             );
         }
         System.out.println("Creating snapshot file in " + snapshotFile.getAbsolutePath());
+        snapshotFile.getParentFile().mkdirs();
+        snapshotFile.createNewFile();
         return snapshotFile;
     }
 
     public static File initializeFilesDirectory(String repositoryPath) {
+        // This does nothing if the directory already exists.
         File repoFilesDir = new File(repositoryPath + File.separator + "files");
         repoFilesDir.mkdirs();
         return repoFilesDir;
+    }
+
+    public static Set<String> loadKnownSetOfAlreadyBackupedUpFilesHashes(File repoFilesDir) throws IOException {
+        try (Stream<Path> pathStream = Files.walk(repoFilesDir.toPath())) {
+            Set<String> existing = pathStream
+                    .map(path -> path.getFileName().toString())
+                    .filter(s -> !s.endsWith(".tmp")) // Filter out broken copies.
+                    .collect(Collectors.toSet());
+            return existing;
+        }
     }
 
     public static void printBackupSizeInfo(Set<BackupTargetFile> allTargets) {
