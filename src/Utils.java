@@ -70,7 +70,7 @@ public class Utils {
     }
 
     public static String nicePercent(double val) {
-        double rounded = Math.round(10000 * val) / 10000 * 100;
-        return rounded + "%";
+        double rounded = Math.round(10000 * val) / 10000.0 * 100;
+        return String.format("%.2f", rounded) + "%";
     }
 }

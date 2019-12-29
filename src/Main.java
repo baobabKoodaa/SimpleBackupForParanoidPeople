@@ -86,7 +86,8 @@ public class Main {
         File snapshotFile = initializeSnapshot(repositoryPath, timestampAtStart);
         File repoFilesDir = initializeFilesDirectory(repositoryPath);
         Set<String> existing = loadKnownSetOfAlreadyBackupedUpFilesHashes(repoFilesDir);
-        try (BufferedWriter snapshotWriter = new BufferedWriter(new FileWriter(snapshotFile, StandardCharsets.UTF_8))) {
+        //try (BufferedWriter snapshotWriter = new BufferedWriter(new FileWriter(snapshotFile, StandardCharsets.UTF_8))) {
+        try (FileWriter snapshotWriter = new FileWriter(snapshotFile, StandardCharsets.UTF_8)) {
             ProgressIndicator progressIndicator = new ProgressIndicator(job);
             for (BackupTargetFile btf : allTargets) {
                 // TODO file (write-)lock from beginning of SHA to the end of copy?
@@ -110,6 +111,7 @@ public class Main {
 
                 // Now that file exists in backup repository, append path/hash pair to current snapshot.
                 snapshotWriter.write(btf.originPath.toString() + Utils.SEPARATOR_BETWEEN_PATH_AND_HASH + hash + "\n");
+                snapshotWriter.flush();
                 progressIndicator.tick(btf.sizeBytes);
             }
             progressIndicator.done();
@@ -189,7 +191,6 @@ public class Main {
                 if (line == null)
                     break;
                 line = line.replace("\uFEFF", ""); // Remove UTF-8 BOM
-                line = line.replace(" ", "%20");
                 targetPathStrings.add(line);
             }
         }
