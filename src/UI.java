@@ -37,7 +37,7 @@ public class UI {
             boolean fastVerification = getVerificationChoice();
             String checkListPath = getCheckListPath();
             String repositoryPath = getRepositoryPath();
-            //Core.verifyBackup(checkListPath, repositoryPath, fastVerification);
+            Core.verifyBackup(checkListPath, repositoryPath, fastVerification);
         } else if (mainMenuChoice == 3) {
             // TODO: restore
         } else if (mainMenuChoice == 4) {
@@ -85,13 +85,13 @@ public class UI {
     }
 
     private boolean getVerificationChoice() {
-        System.out.println("You can choose either fast or slow verification. "
-                + "Fast verification is likely to uncover typical errors. "
-                + "Slow verification is more comprehensive, but it can take a "
-                + "very long time because file contents are read from disk and "
-                + " compared for both original files and copies in the backup repository.\n\n" +
+        System.out.println("You can choose either fast or slow verification.\n"
+                + "Fast verification is likely to uncover typical errors.\n"
+                + "Slow verification is more comprehensive, but it can take a\n"
+                + "very long time because file contents are read from disk and\n"
+                + "compared for both original files and copies in the backup repository.\n" +
                 "1: Fast verification\n" +
-                "2: Slow verification\n");
+                "2: Slow verification");
         String verificationChoice = scanner.next();
         if (verificationChoice.equals("1")) {
             return true;
