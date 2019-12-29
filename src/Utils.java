@@ -13,7 +13,8 @@ public class Utils {
 
     // Path target = null;//newdir.resolve(SHA256xx);
 
-    public static String SEPARATOR_BETWEEN_PATH_AND_HASH = " /// ";
+    public static final String SEPARATOR_BETWEEN_PATH_AND_HASH = " /// ";
+    public static final char[] HEX_ARRAY = "0123456789ABCDEF".toCharArray();
 
     public static void copy(File source, File target) throws IOException {
         Files.copy(source.toPath(), target.toPath(), COPY_ATTRIBUTES);
@@ -37,8 +38,19 @@ public class Utils {
 
         byte[] hash = digest.digest();
 
-        // Return hash as base64-encoded string.
-        return new String(Base64.getEncoder().encode(hash));
+        // Return hash as hex-encoded string.
+        return bytesToHex(hash);
+    }
+
+    public static String bytesToHex(byte[] bytes) {
+        // From https://stackoverflow.com/a/9855338/4490400
+        char[] hexChars = new char[bytes.length * 2];
+        for (int j = 0; j < bytes.length; j++) {
+            int v = bytes[j] & 0xFF;
+            hexChars[j * 2] = HEX_ARRAY[v >>> 4];
+            hexChars[j * 2 + 1] = HEX_ARRAY[v & 0x0F];
+        }
+        return new String(hexChars);
     }
 
     public static String formatSize(double bytes) {
