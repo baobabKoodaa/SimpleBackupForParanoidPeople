@@ -80,7 +80,7 @@ public class Main {
 
     public static void createBackup(String checkListFilePath, String repositoryPath) throws IOException, NoSuchAlgorithmException {
         String timestampAtStart = Utils.timestamp();
-        Set<BackupTargetFile> allTargets = collectAllFilesFromCheckListTargetPaths(checkListFilePath);
+        List<BackupTargetFile> allTargets = collectAllFilesFromCheckListTargetPaths(checkListFilePath);
         printBackupSizeInfo(allTargets);
         File snapshotFile = initializeSnapshot(repositoryPath, timestampAtStart);
         File repoFilesDir = initializeFilesDirectory(repositoryPath);
@@ -103,8 +103,8 @@ public class Main {
                     Utils.copy(originalFile, copyOfFile);
                     // Once copy has finished successfully, attempt to rename the file to just the hash (no extension).
                     Files.move(copyOfFile.toPath(), copyOfFile.toPath().resolveSibling(hash));
+                    existing.add(hash);
                 }
-                existing.add(hash);
 
                 // Now that file exists in backup repository, append path/hash pair to current snapshot.
                 snapshotWriter.write(btf.originPath.toString() + Utils.SEPARATOR_BETWEEN_PATH_AND_HASH + hash + "\n");
@@ -146,7 +146,7 @@ public class Main {
         }
     }
 
-    public static void printBackupSizeInfo(Set<BackupTargetFile> allTargets) {
+    public static void printBackupSizeInfo(Collection<BackupTargetFile> allTargets) {
         long totalBytesNeeded = 0;
         for (BackupTargetFile btf : allTargets) {
             totalBytesNeeded += btf.sizeBytes;
@@ -154,7 +154,7 @@ public class Main {
         System.out.println("Number of target files to backup: " + allTargets.size() + ", totaling " + Utils.formatSize(totalBytesNeeded));
     }
 
-    public static Set<BackupTargetFile> collectAllFilesFromCheckListTargetPaths(String checkListFilePath) throws IOException {
+    public static List<BackupTargetFile> collectAllFilesFromCheckListTargetPaths(String checkListFilePath) throws IOException {
         Set<BackupTargetFile> allTargets = new HashSet<>();
         Set<String> targetPathStrings = getTargetPathStringsFromCheckList(checkListFilePath);
         final AtomicLong counter = new AtomicLong();
@@ -162,7 +162,12 @@ public class Main {
             Path targetPath = new File(targetPathString).toPath();
             collectAllFilesFromTargetPath(targetPath, allTargets, counter);
         }
-        return allTargets;
+        List<BackupTargetFile> allTargetsAsOrderedList = new ArrayList<>(allTargets.size());
+        for (BackupTargetFile btf : allTargets) {
+            allTargetsAsOrderedList.add(btf);
+        }
+        Collections.sort(allTargetsAsOrderedList);
+        return allTargetsAsOrderedList;
     }
 
     public static Set<String> getTargetPathStringsFromCheckList(String checkListFilePath) throws IOException {
@@ -215,7 +220,7 @@ class Pair {
     }
 }
 
-class BackupTargetFile {
+class BackupTargetFile implements Comparable<BackupTargetFile> {
     Path originPath;
     long sizeBytes; // It's ok if size is not always 100% accurate, we use it to measure progress etc.
 
@@ -239,5 +244,10 @@ class BackupTargetFile {
     @Override
     public int hashCode() {
         return originPath.toString().hashCode();
+    }
+
+    @Override
+    public int compareTo(BackupTargetFile o) {
+        return originPath.toString().compareTo(o.originPath.toString());
     }
 }
