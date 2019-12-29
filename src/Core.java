@@ -142,6 +142,35 @@ public class Core {
         long uniqueC = reverseSnapshot.size();
         long duplicateC = totalC - uniqueC;
         System.out.println("Total files in snapshot: " + totalC + " (" + uniqueC + " unique) (" + duplicateC + " duplicate).");
+
+        printInfoAboutLargestDuplicate(latestSnapshot, reverseSnapshot); //TODO remove me?
+    }
+
+    static void printInfoAboutLargestDuplicate(HashMap<String, String> latestSnapshot, ElementCounter reverseSnapshot) {
+        String largestDuplicateHash = "";
+        ArrayList<String> largestDuplicateFilePaths = new ArrayList<>();
+        long largestDuplicateBytes = 0;
+        for (String fp : latestSnapshot.keySet()) {
+            String hash = latestSnapshot.get(fp);
+            if (reverseSnapshot.get(hash) > 1) {
+                // Is duplicate
+                long bytes = new File(fp).length();
+                if (bytes > largestDuplicateBytes) {
+                    // Is larger than previously largest known duplicate.
+                    largestDuplicateBytes = bytes;
+                    largestDuplicateHash = hash;
+                    largestDuplicateFilePaths = new ArrayList<>();
+                }
+                if (hash.equals(largestDuplicateHash)) {
+                    // Is one instance of the largest known duplicate.
+                    largestDuplicateFilePaths.add(fp);
+                }
+            }
+        }
+        System.out.println("    Largest discovered duplicate corresponds to the following files:");
+        for (String fp : largestDuplicateFilePaths) {
+            System.out.println("    " + fp);
+        }
     }
 
     static File initializeNewSnapshotFile(String repositoryPath, String timestamp) throws IOException {
