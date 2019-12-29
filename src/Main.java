@@ -78,14 +78,27 @@ public class Main {
     }
 
     public static void createBackup(String checkListFilePath, String repositoryPath) throws IOException, NoSuchAlgorithmException {
+        String timestampAtStart = Utils.timestamp();
         Set<BackupTargetFile> allTargets = collectAllFilesFromCheckListTargetPaths(checkListFilePath);
         printBackupSizeInfo(allTargets);
-        File snapshotFile = initializeSnapshot(repositoryPath);
+        File snapshotFile = initializeSnapshot(repositoryPath, timestampAtStart);
+        File repoFilesDir = initializeFilesDirectory(repositoryPath);
+        // TODO load known set of hashes from files directory filenames
         try (BufferedWriter snapshotWriter = new BufferedWriter(new FileWriter(snapshotFile, StandardCharsets.UTF_8))) {
             for (BackupTargetFile btf : allTargets) {
                 String hash = Utils.sha256(btf.originPath.toFile());
                 // TODO file (write-)lock from beginning of SHA to the end of copy?
-                // TODO start copying file into backupDir\files\writing-<hash>-<timestamp>.tmp
+                // TODO check if hash already exists in known set
+                // TODO add hash to known set
+                File originalFile = btf.originPath.toFile();
+                File copyOfFile = new File(repoFilesDir.getAbsolutePath() + File.separator + "temp-" + hash + "-" + timestampAtStart + ".tmp");
+                if (copyOfFile.exists()) {
+                    throw new UnexpectedException("We were about to copy a file to a temporary path, but the path already has an existing file." +
+                            "As a precaution we do not overwrite the path: " + copyOfFile.getAbsolutePath() +
+                            "\nThis error might occur if the clock in your computer is not operating normally or if this software has a bug.");
+                }
+                Utils.copy(originalFile, copyOfFile);
+
                 // TODO once copy is finished rename file (safely) into backupDir\files\<hash>
                 snapshotWriter.write(btf.originPath.toString() + Utils.SEPARATOR_BETWEEN_PATH_AND_HASH + hash + "\n");
                 // TODO progress indication based on both number of files and total size
@@ -93,8 +106,8 @@ public class Main {
         }
     }
 
-    public static File initializeSnapshot(String repositoryPath) throws UnexpectedException {
-        File snapshotFile = new File(repositoryPath + File.separator + "snapshot-" + Utils.timestamp() + ".txt");
+    public static File initializeSnapshot(String repositoryPath, String timestamp) throws UnexpectedException {
+        File snapshotFile = new File(repositoryPath + File.separator + "snapshot-" + timestamp + ".txt");
         if (snapshotFile.exists()) {
             // Safety precaution
             throw new UnexpectedException(
@@ -105,6 +118,12 @@ public class Main {
         }
         System.out.println("Creating snapshot file in " + snapshotFile.getAbsolutePath());
         return snapshotFile;
+    }
+
+    public static File initializeFilesDirectory(String repositoryPath) {
+        File repoFilesDir = new File(repositoryPath + File.separator + "files");
+        repoFilesDir.mkdirs();
+        return repoFilesDir;
     }
 
     public static void printBackupSizeInfo(Set<BackupTargetFile> allTargets) {
