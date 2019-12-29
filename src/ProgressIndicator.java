@@ -33,6 +33,7 @@ public class ProgressIndicator {
 
     public void printProgress(long filesC, String countPercent, long bytesC, String bytesPercent) {
         System.out.println("Progress " + Utils.timestamp() + ": " + filesC + " files from checklist are in backup repository (" + countPercent + "), " + Utils.formatSize(bytesC) + " (" + bytesPercent + ")");
+        // TODO MiB/s
         // TODO separately report data copied vs total data in repo
     }
 }
