@@ -32,7 +32,7 @@ public class UI {
                 } else if (mainMenuChoice == 3) {
                     // TODO: restore
                 } else if (mainMenuChoice == 4) {
-                    // TODO: help
+                    printHelp();
                 } else if (mainMenuChoice == 5) {
                     // Exit
                     return;
@@ -58,10 +58,7 @@ public class UI {
         System.out.println("Please enter path to checklist file. If you need more instructions, enter 'help'.");
         String checkListPath = scanner.next();
         if (checkListPath.equals("help")) {
-            System.out.println("A checklist file contains paths to the files or folders that you wish to backup/verify.");
-            System.out.println("An example checklist file is available in " + new File("backup-checklist-example.txt").getAbsolutePath());
-            System.out.println("It's a good idea to copy the example file and modify it.");
-            System.out.println("If you instead decide to create a new file, remember to save it with UTF-8 encoding.");
+            printCheckListHelp();
             System.out.println("Please enter path to checklist file.");
             checkListPath = scanner.next();
         }
@@ -81,13 +78,13 @@ public class UI {
     }
 
     private boolean getVerificationChoice() {
-        System.out.println("You can choose either fast or slow verification.\n"
-                + "Fast verification is likely to uncover typical errors.\n"
-                + "Slow verification is more comprehensive, but it can take a\n"
-                + "very long time because file contents are read from disk and\n"
-                + "compared for both original files and copies in the backup repository.\n" +
-                "1: Fast verification\n" +
-                "2: Slow verification");
+        System.out.println("You can choose either fast or slow verification.");
+        System.out.println("Fast verification is likely to uncover typical errors.");
+        System.out.println("Slow verification is more comprehensive, but it can take a");
+        System.out.println("very long time because file contents for all files are read from disk and");
+        System.out.println("compared for both original files and copies in the backup repository.");
+        System.out.println("1: Fast verification");
+        System.out.println("2: Slow verification");
         String verificationChoice = scanner.next();
         if (verificationChoice.equals("1")) {
             return true;
@@ -96,5 +93,20 @@ public class UI {
         } else {
             throw new IllegalArgumentException("Error! Input must be either '1' or '2'.");
         }
+    }
+
+    private void printHelp() {
+        System.out.println("This program is intended for periodic backups of your personal data.");
+        System.out.println("First, create a checklist of paths that you wish to backup.");
+        printCheckListHelp();
+        System.out.println("Once you have a checklist, this program can backup the files found in checklist paths.");
+        System.out.println("For more information, visit www.attejuvonen.fi/simple-backup-for-paranoid-people");
+    }
+
+    private void printCheckListHelp() {
+        System.out.println("A checklist file contains paths to the files or folders that you wish to backup/verify.");
+        System.out.println("An example checklist file is available in " + new File("backup-checklist-example.txt").getAbsolutePath());
+        System.out.println("It's a good idea to copy the example file and modify it.");
+        System.out.println("If you instead decide to create a new file, remember to save it with UTF-8 encoding.");
     }
 }
