@@ -12,41 +12,37 @@ public class UI {
 
         while (true) {
             try {
-                mainMenu();
+                System.out.println("This is SimpleBackupForParanoidPeople. What would you like to do?");
+                System.out.println("1: Backup your files");
+                System.out.println("2: Verify backup");
+                System.out.println("3: Restore files from backup");
+                System.out.println("4: Help");
+                System.out.println("5: Exit");
+                int mainMenuChoice = getMainMenuChoice();
+                if (mainMenuChoice == 1) {
+                    String checkListPath = getCheckListPath();
+                    String repositoryPath = getRepositoryPath();
+                    // TODO verify from user that interpreted paths are ok
+                    Core.createBackup(checkListPath, repositoryPath);
+                } else if (mainMenuChoice == 2) {
+                    boolean fastVerification = getVerificationChoice();
+                    String checkListPath = getCheckListPath();
+                    String repositoryPath = getRepositoryPath();
+                    Core.verifyBackup(checkListPath, repositoryPath, fastVerification);
+                } else if (mainMenuChoice == 3) {
+                    // TODO: restore
+                } else if (mainMenuChoice == 4) {
+                    // TODO: help
+                } else if (mainMenuChoice == 5) {
+                    // Exit
+                    return;
+                } else {
+                    throw new IllegalArgumentException("Invalid input! Number out of range.");
+                }
             } catch (IllegalArgumentException ex) {
                 // Whenever the user gives invalid input, we show an error message and jump back to main menu.
                 System.out.println(ex.getMessage());
             }
-        }
-    }
-
-    private void mainMenu() throws IOException, NoSuchAlgorithmException {
-        System.out.println("This is SimpleBackupForParanoidPeople. What would you like to do?");
-        System.out.println("1: Backup your files");
-        System.out.println("2: Verify backup");
-        System.out.println("3: Restore files from backup");
-        System.out.println("4: Help");
-        System.out.println("5: Exit");
-        int mainMenuChoice = getMainMenuChoice();
-        if (mainMenuChoice == 1) {
-            String checkListPath = getCheckListPath();
-            String repositoryPath = getRepositoryPath();
-            // TODO verify from user that interpreted paths are ok
-            Core.createBackup(checkListPath, repositoryPath);
-        } else if (mainMenuChoice == 2) {
-            boolean fastVerification = getVerificationChoice();
-            String checkListPath = getCheckListPath();
-            String repositoryPath = getRepositoryPath();
-            Core.verifyBackup(checkListPath, repositoryPath, fastVerification);
-        } else if (mainMenuChoice == 3) {
-            // TODO: restore
-        } else if (mainMenuChoice == 4) {
-            // TODO: help
-        } else if (mainMenuChoice == 5) {
-            // Exit
-            return;
-        } else {
-            throw new IllegalArgumentException("Invalid input! Number out of range.");
         }
     }
 
