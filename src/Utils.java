@@ -1,17 +1,13 @@
 import java.io.*;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Base64;
 
 import static java.nio.file.StandardCopyOption.COPY_ATTRIBUTES;
 
 public class Utils {
-
-    // Path target = null;//newdir.resolve(SHA256xx);
 
     public static final String SEPARATOR_BETWEEN_PATH_AND_HASH = " /// ";
     public static final char[] HEX_ARRAY = "0123456789ABCDEF".toCharArray();
@@ -65,12 +61,15 @@ public class Utils {
         return round2(bytes / tib) + " TiB";
     }
 
+    /** Rounds down to 2 decimals. */
     public static String round2(double val) {
         return String.format("%.2f", val);
     }
 
     public static String nicePercent(double val) {
+        // Round to closest (not down).
         double rounded = Math.round(10000 * val) / 10000.0 * 100;
-        return String.format("%.2f", rounded) + "%";
+        // Floating point precision issues necessitate the use of string format (round2) even after rounding.
+        return round2(rounded) + "%";
     }
 }

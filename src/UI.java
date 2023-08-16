@@ -30,7 +30,9 @@ public class UI {
                     String repositoryPath = getRepositoryPath();
                     Core.verifyBackup(checkListPath, repositoryPath, fastVerification);
                 } else if (mainMenuChoice == 3) {
-                    // TODO: restore
+                    String snapshotPath = getSnapshotPath();
+                    String restoreLocation = getRestoreLocation();
+                    Core.restoreBackup(snapshotPath, restoreLocation);
                 } else if (mainMenuChoice == 4) {
                     printHelp();
                 } else if (mainMenuChoice == 5) {
@@ -93,6 +95,26 @@ public class UI {
         } else {
             throw new IllegalArgumentException("Error! Input must be either '1' or '2'.");
         }
+    }
+
+    private String getSnapshotPath() {
+        System.out.println("Please enter path to the snapshot you wish to restore (e.g. E:\\backup\\filepath-snapshots\\snapshot-2018-12-31.txt");
+        String snapshotPath = scanner.next();
+        if (!new File(snapshotPath).isFile()) {
+            throw new IllegalArgumentException("Error! Given path is not an existing file: " + new File(snapshotPath).getAbsolutePath());
+        }
+        return snapshotPath;
+    }
+
+    private String getRestoreLocation() {
+        System.out.println("Where do you wish to restore files? Type 'origin' if you wish to restore files to their original locations.");
+        System.out.println("Otherwise, type the path where files should be restored (e.g. C:\\restored-from-backup");
+        String restoreLocation = scanner.next();
+        if (!restoreLocation.equals("origin") && !new File(restoreLocation).isDirectory()) {
+            throw new IllegalArgumentException("Error! Restore location must be either 'origin' or a path to an existing directory." +
+                    "\nThe given path does not correspond to either: " + new File(restoreLocation).getAbsolutePath());
+        }
+        return restoreLocation;
     }
 
     private void printHelp() {

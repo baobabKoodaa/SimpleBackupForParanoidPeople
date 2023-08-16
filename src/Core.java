@@ -13,46 +13,63 @@ import java.util.stream.Stream;
 public class Core {
 
     static void createBackup(String checkListFilePath, String repositoryPath) throws IOException, NoSuchAlgorithmException {
+        // TODO validate parameters correspond to valid-looking file and folder
         String timestampAtStart = Utils.timestamp();
         List<BackupTargetFile> allTargets = collectAllFilesFromCheckListTargetPaths(checkListFilePath);
+        List<BackupTargetFile> failedTargets = new ArrayList<>();
         Pair job = calculateJobSize(allTargets);
         System.out.println("Number of target files to backup: " + job.count + ", totaling " + Utils.formatSize(job.size));
         File snapshotFile = initializeNewSnapshotFile(repositoryPath, timestampAtStart);
         File repoFilesDir = getOrCreateRepoFilesDir(repositoryPath);
         Set<String> existing = loadKnownSetOfAlreadyBackupedUpFilesHashes(repoFilesDir);
+        // TODO make a copy of checklist into backup location, with timestamp
         try (FileWriter snapshotWriter = new FileWriter(snapshotFile, StandardCharsets.UTF_8)) {
             ProgressIndicator progressIndicator = new ProgressIndicator(job);
-            // TODO handle individual failures (file inaccessible due to being locked, file moved and no longer found, etc.) (ohita ne ja kirjoita ne checklist-failures.txt)
             for (BackupTargetFile btf : allTargets) {
                 // TODO file (write-)lock from beginning of SHA to the end of copy?
-                String hash = Utils.sha256(btf.originPath.toFile());
-                if (!existing.contains(hash)) {
-                    // File does not already exist in backup repository, so we need to copy it.
-                    // We want to copy the file under a temp name first, because the copy might fail and in that case
-                    // we want the file name to indicate that this partial/failed copy is not a proper copy of the file.
-                    File originalFile = btf.originPath.toFile();
-                    File copyOfFile = new File(repoFilesDir.getAbsolutePath() + File.separator + "temp-" + hash + "-" + timestampAtStart + ".tmp");
-                    if (copyOfFile.exists()) {
-                        throw new UnexpectedException("We were about to copy a file to a temporary path, but the path already has an existing file." +
-                                "As a precaution we do not overwrite the path: " + copyOfFile.getAbsolutePath() +
-                                "\nThis error might occur if the clock in your computer is not operating normally or if this software has a bug.");
+                try {
+                    String hash = Utils.sha256(btf.originPath.toFile());
+                    if (!existing.contains(hash)) {
+                        // File does not already exist in backup repository, so we need to copy it.
+                        // We want to copy the file under a temp name first, because the copy might fail and in that case
+                        // we want the file name to indicate that this partial/failed copy is not a proper copy of the file.
+                        File originalFile = btf.originPath.toFile();
+                        File copyOfFile = new File(repoFilesDir.getAbsolutePath() + File.separator + "temp-" + hash + "-" + timestampAtStart + ".tmp");
+                        if (copyOfFile.exists()) {
+                            throw new UnexpectedException("We were about to copy a file to a temporary path, but the path already has an existing file." +
+                                    "As a precaution we do not overwrite the path: " + copyOfFile.getAbsolutePath() +
+                                    "\nThis error might occur if the clock in your computer is not operating normally or if this software has a bug.");
+                        }
+                        Utils.copy(originalFile, copyOfFile);
+                        // Once copy has finished successfully, attempt to rename the file to just the hash (no extension).
+                        // TODO verify that originalFilePath != copyOfFilePath != siblingPath
+                        Files.move(copyOfFile.toPath(), copyOfFile.toPath().resolveSibling(hash));
+                        existing.add(hash);
                     }
-                    Utils.copy(originalFile, copyOfFile);
-                    // Once copy has finished successfully, attempt to rename the file to just the hash (no extension).
-                    Files.move(copyOfFile.toPath(), copyOfFile.toPath().resolveSibling(hash));
-                    existing.add(hash);
-                }
 
-                // Now that file exists in backup repository, append path/hash pair to current snapshot.
-                snapshotWriter.write(btf.originPath.toString() + Utils.SEPARATOR_BETWEEN_PATH_AND_HASH + hash + "\n");
-                snapshotWriter.flush();
+                    // Now that file exists in backup repository, append path/hash pair to current snapshot.
+                    snapshotWriter.write(btf.originPath.toString() + Utils.SEPARATOR_BETWEEN_PATH_AND_HASH + hash + "\n");
+                    snapshotWriter.flush();
+                } catch (Exception ex) {
+                    // TODO keep count of files that we were unable to copy!
+                    failedTargets.add(btf);
+                    System.err.println("Unable to copy file " + btf.originPath.toAbsolutePath().toString() + " because of error " + ex.getMessage());
+                    ex.printStackTrace();
+                }
                 progressIndicator.tick(btf.sizeBytes);
             }
             progressIndicator.done();
         }
+        if (!failedTargets.isEmpty()) {
+            System.out.println("Failed to copy " + failedTargets.size() + " targets:");
+            for (BackupTargetFile btf : failedTargets) {
+                // TODO write failures to checklist-failures.txt
+                System.out.println(btf.originPath.toAbsolutePath().toString());
+            }
+        }
     }
 
-    static void verifyBackup(String checkListFilePath, String repositoryPath, boolean fast) throws IOException, NoSuchAlgorithmException {
+    static void verifyBackup(String checkListFilePath, String repositoryPath, boolean fast) throws IOException {
         System.out.println("Verification step 1: verifying that files from checklist are found in backup repository's snapshot and files folder... (file contents will not be verified yet)");
         List<BackupTargetFile> allTargets = collectAllFilesFromCheckListTargetPaths(checkListFilePath);
         File repoFilesDir = getOrCreateRepoFilesDir(repositoryPath);
@@ -77,16 +94,23 @@ public class Core {
         }
         String foundPercent = Utils.nicePercent(count[FOUND] * 1.0 / (count[FOUND] + count[NOT_FOUND]));
         if (count[NOT_FOUND] == 0) {
-            System.out.println("SUCCESS! All files in checklist paths were found in backup repository (file contents were not verified).");
+            System.out.println("SUCCESS! All files in checklist paths were found in backup repository (note that file contents were not verified in this step).");
         } else {
-            System.out.println("Files in checklist paths which were found in backup repository: " + foundPercent + " (file contents were not verified).");
+            System.out.println("WARNING! Only " + foundPercent + " of files in checklist paths were found in backup repository (perhaps new files were created after latest backup was initiated?) (note that file contents were not verified in this step).");
         }
 
 
         System.out.println("Verification step 2: verifying file contents...");
         // TODO if fast then take a small sample of files for step2
         // TODO Recalculate SHA256 for all files in "files" folder and compare against SHA256 in filename
-        // TODO Recalculate SHA256 for all files in checklisk (compare against known set + verify that file is listed with correct hash in latest snapshot)
+        // TODO Recalculate SHA256 for all files in checklist (compare against known set + verify that file is listed with correct hash in latest snapshot)
+
+        // TODO summary of results
+    }
+
+    static void restoreBackup(String snapshotFilePath, String restoreLocation) {
+        boolean restoreToOrigin = restoreLocation.equals("origin");
+        // TODO refactor filereaders into a method which returns list of strings.
     }
 
     static HashMap<String, String> loadLatestSnapshotMap(File repoFilesDir) throws IOException {
@@ -194,6 +218,7 @@ public class Core {
     }
 
     static Set<String> loadKnownSetOfAlreadyBackupedUpFilesHashes(File repoFilesDir) throws IOException {
+        // TODO progress indicator here
         try (Stream<Path> pathStream = Files.walk(repoFilesDir.toPath())) {
             Set<String> existing = pathStream
                     .map(path -> path.getFileName().toString())
@@ -237,6 +262,7 @@ public class Core {
         if (!checkListFile.exists()) {
             throw new IllegalArgumentException("File not found: " + checkListFile.getAbsolutePath());
         }
+        // TODO refactor filereaders into a method which returns list of strings.
         try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(checkListFile), "UTF-8"))) {
             System.out.println("Checklist: walking through file trees... This may be very fast or very slow depending on two things: the amount of files in checklist, and whether your OS has indexed the files or if it has to read them from disk.");
             while (true) {
