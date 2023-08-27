@@ -51,7 +51,6 @@ public class Core {
                     snapshotWriter.write(btf.originPath.toString() + Utils.SEPARATOR_BETWEEN_PATH_AND_HASH + hash + "\n");
                     snapshotWriter.flush();
                 } catch (Exception ex) {
-                    // TODO keep count of files that we were unable to copy!
                     failedTargets.add(btf);
                     System.err.println("Unable to copy file " + btf.originPath.toAbsolutePath().toString() + " because of error " + ex.getMessage());
                     ex.printStackTrace();

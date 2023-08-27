@@ -50,7 +50,7 @@ public class UI {
 
     private int getMainMenuChoice() {
         try {
-            return Integer.parseInt(scanner.next());
+            return Integer.parseInt(scanner.nextLine());
         } catch (Exception ex) {
             throw new IllegalArgumentException("Invalid input! You must enter a number.");
         }
@@ -58,11 +58,11 @@ public class UI {
 
     private String getCheckListPath() {
         System.out.println("Please enter path to checklist file. If you need more instructions, enter 'help'.");
-        String checkListPath = scanner.next();
+        String checkListPath = scanner.nextLine();
         if (checkListPath.equals("help")) {
             printCheckListHelp();
             System.out.println("Please enter path to checklist file.");
-            checkListPath = scanner.next();
+            checkListPath = scanner.nextLine();
         }
         if (!new File(checkListPath).isFile()) {
             throw new IllegalArgumentException("Error! Given path does not correspond to a checklist file: " + new File(checkListPath).getAbsolutePath());
@@ -72,7 +72,7 @@ public class UI {
 
     private String getRepositoryPath() {
         System.out.println("Please enter path to backup repository (where your backup is stored, e.g. E:\\backup).");
-        String repositoryPath = scanner.next();
+        String repositoryPath = scanner.nextLine();
         if (!new File(repositoryPath).isDirectory()) {
             throw new IllegalArgumentException("Error! Given path is not an existing directory: " + new File(repositoryPath).getAbsolutePath());
         }
@@ -87,7 +87,7 @@ public class UI {
         System.out.println("compared for both original files and copies in the backup repository.");
         System.out.println("1: Fast verification");
         System.out.println("2: Slow verification");
-        String verificationChoice = scanner.next();
+        String verificationChoice = scanner.nextLine();
         if (verificationChoice.equals("1")) {
             return true;
         } else if (verificationChoice.equals("2")) {
@@ -99,7 +99,7 @@ public class UI {
 
     private String getSnapshotPath() {
         System.out.println("Please enter path to the snapshot you wish to restore (e.g. E:\\backup\\filepath-snapshots\\snapshot-2018-12-31.txt");
-        String snapshotPath = scanner.next();
+        String snapshotPath = scanner.nextLine();
         if (!new File(snapshotPath).isFile()) {
             throw new IllegalArgumentException("Error! Given path is not an existing file: " + new File(snapshotPath).getAbsolutePath());
         }
@@ -109,7 +109,7 @@ public class UI {
     private String getRestoreLocation() {
         System.out.println("Where do you wish to restore files? Type 'origin' if you wish to restore files to their original locations.");
         System.out.println("Otherwise, type the path where files should be restored (e.g. C:\\restored-from-backup");
-        String restoreLocation = scanner.next();
+        String restoreLocation = scanner.nextLine();
         if (!restoreLocation.equals("origin") && !new File(restoreLocation).isDirectory()) {
             throw new IllegalArgumentException("Error! Restore location must be either 'origin' or a path to an existing directory." +
                     "\nThe given path does not correspond to either: " + new File(restoreLocation).getAbsolutePath());
