@@ -16,6 +16,7 @@ public class UI {
                 System.out.println("B: Backup your files");
                 System.out.println("V: Verify backup");
                 System.out.println("R: Restore files from backup");
+                System.out.println("D: Detect duplicates");
                 System.out.println("H: Help");
                 System.out.println("Q: Exit");
                 String mainMenuChoice = scanner.nextLine().trim().toUpperCase();
@@ -33,6 +34,10 @@ public class UI {
                     String snapshotPath = getSnapshotPath();
                     String restoreLocation = getRestoreLocation();
                     Core.restoreBackup(snapshotPath, restoreLocation);
+                } else if (mainMenuChoice.equals("D")) {
+                    String repositoryPath = getRepositoryPath();
+                    int mbThreshold = getMbThreshold();
+                    Core.detectDuplicates(repositoryPath, mbThreshold);
                 } else if (mainMenuChoice.equals("H")) {
                     printHelp();
                 } else if (mainMenuChoice.equals("Q")) {
@@ -69,6 +74,11 @@ public class UI {
             throw new IllegalArgumentException("Error! Given path is not an existing directory: " + new File(repositoryPath).getAbsolutePath());
         }
         return repositoryPath;
+    }
+
+    private int getMbThreshold() {
+        System.out.println("MB threshold for duplicates so we don't complain about small duplicates? (e.g. 100)");
+        return Integer.parseInt(scanner.nextLine());
     }
 
     private boolean getVerificationChoice() {

@@ -20,7 +20,19 @@ public class Utils {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("uuuu-MM-dd-HH-mm-ss");
         return LocalDateTime.now().format(formatter);
     }
+    public static String formatFileSize(long size) {
+        final String[] units = new String[] { "B", "KB", "MB", "GB", "TB", "PB", "EB" };
+        int unitIndex = 0;
+        double fileSize = size;
 
+        while (fileSize >= 1024 && unitIndex < units.length - 1) {
+            fileSize /= 1024;
+            unitIndex++;
+        }
+
+        // Format with up to 2 decimal places
+        return String.format("%.2f %s", fileSize, units[unitIndex]);
+    }
     public static String sha256(File file) throws NoSuchAlgorithmException, IOException {
         // Adapted from https://stackoverflow.com/a/32032908/4490400
         byte[] buffer= new byte[8192];

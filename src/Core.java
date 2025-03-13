@@ -74,7 +74,6 @@ public class Core {
         File repoFilesDir = getOrCreateRepoFilesDir(repositoryPath);
         Set<String> existing = loadKnownSetOfAlreadyBackupedUpFilesHashes(repoFilesDir);
         HashMap<String, String> latestSnapshot = loadLatestSnapshotMap(repoFilesDir);
-        printInfoAboutDuplicateFiles(latestSnapshot);
         int[] count = new int[2];
         final int FOUND = 1;
         final int NOT_FOUND = 0;
@@ -105,6 +104,66 @@ public class Core {
         // TODO Recalculate SHA256 for all files in checklist (compare against known set + verify that file is listed with correct hash in latest snapshot)
 
         // TODO summary of results
+    }
+
+    static void detectDuplicates(String repositoryPath, int mbThreshold) throws IOException {
+        System.out.println("Detecting duplicates based on latest snapshot file...");
+        File repoFilesDir = getOrCreateRepoFilesDir(repositoryPath);
+        HashMap<String, String> latestSnapshot = loadLatestSnapshotMap(repoFilesDir);
+
+        // Count duplicates
+        ElementCounter reverseSnapshot = new ElementCounter();
+        for (String hash : latestSnapshot.values()) {
+            reverseSnapshot.add(hash);
+        }
+        long totalC = latestSnapshot.size();
+        long uniqueC = reverseSnapshot.size();
+        long duplicateC = totalC - uniqueC;
+
+        // Collect file paths for large duplicates
+        long byteThreshold = 1000000L * mbThreshold;
+        Map<String, ArrayList<String>> duplicateFilePaths = new HashMap<>();
+        Map<String, Long> duplicateBytes = new TreeMap<>();
+        for (String fp : latestSnapshot.keySet()) {
+            String hash = latestSnapshot.get(fp);
+            if (reverseSnapshot.get(hash) > 1) {
+                // If we are here, then this file is a duplicate
+                long bytes = new File(fp).length();
+                if (bytes < byteThreshold) {
+                    // We don't care about small duplicates
+                    continue;
+                }
+                // Write down size (possibly overwriting identical value)
+                duplicateBytes.put(hash, bytes);
+                if (!duplicateFilePaths.containsKey(hash)) {
+                    // First instance of this duplicate file in this loop, so initialize list of paths
+                    duplicateFilePaths.put(hash, new ArrayList<>());
+                }
+                // Add this path to list of file paths for this hash
+                duplicateFilePaths.get(hash).add(fp);
+            }
+        }
+
+        // Print file paths for large duplicates
+        List<Map.Entry<String, Long>> entries = new ArrayList<>(duplicateBytes.entrySet());
+        entries.sort(Map.Entry.comparingByValue());
+        for (Map.Entry<String, Long> entry : entries) {
+            String hash = entry.getKey();
+            // Verify that more than 1 path was found (in cases where a file is deleted after creating snapshot, it's possible
+            // that we find duplicates in snapshot but then don't locate all the versions of the actual file, in which
+            // case there would be just one (or zero) filepaths in duplicateFilePaths
+            if (duplicateFilePaths.size() < 2) {
+                continue;
+            }
+            System.out.println();
+            System.out.println(Utils.formatFileSize(duplicateBytes.get(hash)));
+            for (String fp : duplicateFilePaths.get(hash)) {
+                System.out.println("    " + fp);
+            }
+        }
+
+        // Print total duplicate count, including small files
+        System.out.println("Total files in snapshot: " + totalC + " (" + uniqueC + " unique) (" + duplicateC + " duplicate).");
     }
 
     static void restoreBackup(String snapshotFilePath, String restoreLocation) {
@@ -150,46 +209,6 @@ public class Core {
             String latestSnapshotPathString = snapshotsDir.getAbsolutePath() + File.separator + snapshotPathStrings.get(0);
             System.out.println("Latest snapshot appears to be " + latestSnapshotPathString);
             return new File(latestSnapshotPathString);
-        }
-    }
-
-    static void printInfoAboutDuplicateFiles(HashMap<String, String> latestSnapshot) {
-        ElementCounter reverseSnapshot = new ElementCounter();
-        for (String hash : latestSnapshot.values()) {
-            reverseSnapshot.add(hash);
-        }
-        long totalC = latestSnapshot.size();
-        long uniqueC = reverseSnapshot.size();
-        long duplicateC = totalC - uniqueC;
-        System.out.println("Total files in snapshot: " + totalC + " (" + uniqueC + " unique) (" + duplicateC + " duplicate).");
-
-        printInfoAboutLargestDuplicate(latestSnapshot, reverseSnapshot); //TODO remove me?
-    }
-
-    static void printInfoAboutLargestDuplicate(HashMap<String, String> latestSnapshot, ElementCounter reverseSnapshot) {
-        String largestDuplicateHash = "";
-        ArrayList<String> largestDuplicateFilePaths = new ArrayList<>();
-        long largestDuplicateBytes = 0;
-        for (String fp : latestSnapshot.keySet()) {
-            String hash = latestSnapshot.get(fp);
-            if (reverseSnapshot.get(hash) > 1) {
-                // Is duplicate
-                long bytes = new File(fp).length();
-                if (bytes > largestDuplicateBytes) {
-                    // Is larger than previously largest known duplicate.
-                    largestDuplicateBytes = bytes;
-                    largestDuplicateHash = hash;
-                    largestDuplicateFilePaths = new ArrayList<>();
-                }
-                if (hash.equals(largestDuplicateHash)) {
-                    // Is one instance of the largest known duplicate.
-                    largestDuplicateFilePaths.add(fp);
-                }
-            }
-        }
-        System.out.println("    Largest discovered duplicate corresponds to the following files:");
-        for (String fp : largestDuplicateFilePaths) {
-            System.out.println("    " + fp);
         }
     }
 
