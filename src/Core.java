@@ -156,7 +156,7 @@ public class Core {
                 continue;
             }
             System.out.println();
-            System.out.println(Utils.formatFileSize(duplicateBytes.get(hash)));
+            System.out.println(Utils.formatSize(duplicateBytes.get(hash)));
             for (String fp : duplicateFilePaths.get(hash)) {
                 System.out.println("    " + fp);
             }
