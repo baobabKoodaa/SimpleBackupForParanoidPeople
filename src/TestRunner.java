@@ -74,6 +74,7 @@ public class TestRunner {
         throw new IOException("Error! Copy should fail when target file exists, but it did not fail during a test.");
     }
 
+    // TODO add tests to verify that checklist path files are crawled successfully and errors are thrown from invalid paths
     // TODO prevent copy failure when output path is set incorrectly and copy "fails if the target file already exists or is a symbolic link, except if the source and target are the same file, in which case the method completes without copying the file."
     // TODO document that symbolic links are followed to the final destination
     // TODO deal with ioexception; "possible that the target file is incomplete or some of its file attributes have not been copied from the source file"

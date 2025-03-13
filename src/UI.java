@@ -13,46 +13,38 @@ public class UI {
         while (true) {
             try {
                 System.out.println("This is SimpleBackupForParanoidPeople. What would you like to do?");
-                System.out.println("1: Backup your files");
-                System.out.println("2: Verify backup");
-                System.out.println("3: Restore files from backup");
-                System.out.println("4: Help");
-                System.out.println("5: Exit");
-                int mainMenuChoice = getMainMenuChoice();
-                if (mainMenuChoice == 1) {
+                System.out.println("B: Backup your files");
+                System.out.println("V: Verify backup");
+                System.out.println("R: Restore files from backup");
+                System.out.println("H: Help");
+                System.out.println("Q: Exit");
+                String mainMenuChoice = scanner.nextLine().trim().toUpperCase();
+                if (mainMenuChoice.equals("B")) {
                     String checkListPath = getCheckListPath();
                     String repositoryPath = getRepositoryPath();
                     // TODO verify from user that interpreted paths are ok
                     Core.createBackup(checkListPath, repositoryPath);
-                } else if (mainMenuChoice == 2) {
+                } else if (mainMenuChoice.equals("V")) {
                     boolean fastVerification = getVerificationChoice();
                     String checkListPath = getCheckListPath();
                     String repositoryPath = getRepositoryPath();
                     Core.verifyBackup(checkListPath, repositoryPath, fastVerification);
-                } else if (mainMenuChoice == 3) {
+                } else if (mainMenuChoice.equals("R")) {
                     String snapshotPath = getSnapshotPath();
                     String restoreLocation = getRestoreLocation();
                     Core.restoreBackup(snapshotPath, restoreLocation);
-                } else if (mainMenuChoice == 4) {
+                } else if (mainMenuChoice.equals("H")) {
                     printHelp();
-                } else if (mainMenuChoice == 5) {
+                } else if (mainMenuChoice.equals("Q")) {
                     // Exit
                     return;
                 } else {
-                    throw new IllegalArgumentException("Invalid input! Number out of range.");
+                    throw new IllegalArgumentException("Invalid input! Choose from the presented options.");
                 }
             } catch (IllegalArgumentException ex) {
                 // Whenever the user gives invalid input, we show an error message and jump back to main menu.
                 System.out.println(ex.getMessage());
             }
-        }
-    }
-
-    private int getMainMenuChoice() {
-        try {
-            return Integer.parseInt(scanner.nextLine());
-        } catch (Exception ex) {
-            throw new IllegalArgumentException("Invalid input! You must enter a number.");
         }
     }
 
