@@ -1,3 +1,5 @@
 ## SimpleBackupForParanoidPeople
 
-WIP
+Checklist-inspired backup with hash-based deduplication.
+
+WIP.
