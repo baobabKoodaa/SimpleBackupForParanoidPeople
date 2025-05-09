@@ -1,6 +1,5 @@
 import java.util.HashMap;
 
-/** Helper. */
 public class ElementCounter {
     HashMap<String, Integer> elements;
 

@@ -31,9 +31,9 @@ public class UI {
                     String repositoryPath = getRepositoryPath();
                     Core.verifyBackup(checkListPath, repositoryPath, fastVerification);
                 } else if (mainMenuChoice.equals("R")) {
-                    String snapshotPath = getSnapshotPath();
+                    String repositoryPath = getRepositoryPath();
                     String restoreLocation = getRestoreLocation();
-                    Core.restoreBackup(snapshotPath, restoreLocation);
+                    Core.restoreBackup(repositoryPath, restoreLocation);
                 } else if (mainMenuChoice.equals("D")) {
                     String repositoryPath = getRepositoryPath();
                     int mbThreshold = getMbThreshold();
@@ -109,12 +109,10 @@ public class UI {
     }
 
     private String getRestoreLocation() {
-        System.out.println("Where do you wish to restore files? Type 'origin' if you wish to restore files to their original locations.");
-        System.out.println("Otherwise, type the path where files should be restored (e.g. C:\\restored-from-backup");
+        System.out.println("Where do you wish to restore files? e.g. C:\\restored-from-backup");
         String restoreLocation = scanner.nextLine();
-        if (!restoreLocation.equals("origin") && !new File(restoreLocation).isDirectory()) {
-            throw new IllegalArgumentException("Error! Restore location must be either 'origin' or a path to an existing directory." +
-                    "\nThe given path does not correspond to either: " + new File(restoreLocation).getAbsolutePath());
+        if (!new File(restoreLocation).isDirectory()) {
+            throw new IllegalArgumentException("Error! Restore location does not point to an existing directory." + new File(restoreLocation).getAbsolutePath());
         }
         return restoreLocation;
     }

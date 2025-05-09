@@ -9,13 +9,13 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-/** This Core class contains most of the backup logic. */
 public class Core {
 
     static void createBackup(String checkListFilePath, String repositoryPath) throws IOException, NoSuchAlgorithmException {
         // TODO validate parameters correspond to valid-looking file and folder
         String timestampAtStart = Utils.timestamp();
-        List<BackupTargetFile> allTargets = collectAllFilesFromCheckListTargetPaths(checkListFilePath);
+        Set<String> targetPathStrings = getTargetPathStringsFromCheckList(checkListFilePath);
+        List<BackupTargetFile> allTargets = collectAllFilesFromCheckListTargetPaths(targetPathStrings);
         List<BackupTargetFile> failedTargets = new ArrayList<>();
         Pair job = calculateJobSize(allTargets);
         System.out.println("Number of target files to backup: " + job.count + ", totaling " + Utils.formatSize(job.size));
@@ -24,7 +24,7 @@ public class Core {
         Set<String> existing = loadKnownSetOfAlreadyBackupedUpFilesHashes(repoFilesDir);
         // TODO make a copy of checklist into backup location, with timestamp
         try (FileWriter snapshotWriter = new FileWriter(snapshotFile, StandardCharsets.UTF_8)) {
-            ProgressIndicator progressIndicator = new ProgressIndicator(job);
+            ProgressIndicator progressIndicator = new ProgressIndicator(job.size, job.count, "files from checklist are backed up to repository");
             for (BackupTargetFile btf : allTargets) {
                 // TODO file (write-)lock from beginning of SHA to the end of copy?
                 try {
@@ -70,7 +70,8 @@ public class Core {
 
     static void verifyBackup(String checkListFilePath, String repositoryPath, boolean fast) throws IOException {
         System.out.println("Verification step 1: verifying that files from checklist are found in backup repository's snapshot and files folder... (file contents will not be verified yet)");
-        List<BackupTargetFile> allTargets = collectAllFilesFromCheckListTargetPaths(checkListFilePath);
+        Set<String> targetPathStrings = getTargetPathStringsFromCheckList(checkListFilePath);
+        List<BackupTargetFile> allTargets = collectAllFilesFromCheckListTargetPaths(targetPathStrings);
         File repoFilesDir = getOrCreateRepoFilesDir(repositoryPath);
         Set<String> existing = loadKnownSetOfAlreadyBackupedUpFilesHashes(repoFilesDir);
         HashMap<String, String> latestSnapshot = loadLatestSnapshotMap(repoFilesDir);
@@ -166,9 +167,39 @@ public class Core {
         System.out.println("Total files in snapshot: " + totalC + " (" + uniqueC + " unique) (" + duplicateC + " duplicate).");
     }
 
-    static void restoreBackup(String snapshotFilePath, String restoreLocation) {
-        boolean restoreToOrigin = restoreLocation.equals("origin");
-        // TODO refactor filereaders into a method which returns list of strings.
+    static void restoreBackup(String repositoryPath, String restoreLocation) throws IOException {
+        // Get latest snapshot
+        File repoFilesDir = getOrCreateRepoFilesDir(repositoryPath);
+        HashMap<String, String> latestSnapshot = loadLatestSnapshotMap(repoFilesDir);
+        System.out.println("Number of repo files to restore: " + latestSnapshot.size());
+
+        // Calculate total size for progress indicator
+        List<BackupTargetFile> allFiles = collectAllFilesFromCheckListTargetPaths(Set.of(repoFilesDir.toString()));
+        Pair job = calculateJobSize(allFiles);
+        ProgressIndicator progressIndicator = new ProgressIndicator(job.size, job.count, "files from backup are restored");
+
+        // Copy files
+        for (String originalFilepath : latestSnapshot.keySet()) {
+            String hash = latestSnapshot.get(originalFilepath);
+            File backupFile = new File(repoFilesDir, hash);
+
+            // Fix platform specific special characters
+            String fixedOriginalFilepath = originalFilepath
+                    .replace(":", "")
+                    .replace('\\', '/')
+                    .replace('/', File.separatorChar);
+
+            // Copy as .tmp first, rename after successful copy (because an error during copy can lead to partially copied file, we want the .tmp to indicate that)
+            File restoreDir = new File(restoreLocation);
+            File tmpCopy = new File(restoreDir, fixedOriginalFilepath + ".tmp");
+            File finalCopy = new File(restoreDir, fixedOriginalFilepath);
+            tmpCopy.getParentFile().mkdirs();
+            Utils.copy(backupFile, tmpCopy);
+            Files.move(tmpCopy.toPath(), finalCopy.toPath());
+            long sizeBytes = finalCopy.length();
+            progressIndicator.tick(sizeBytes);
+        }
+        progressIndicator.done();
     }
 
     static HashMap<String, String> loadLatestSnapshotMap(File repoFilesDir) throws IOException {
@@ -254,11 +285,9 @@ public class Core {
         return new Pair(totalBytesNeeded, allTargets.size());
     }
 
-    static List<BackupTargetFile> collectAllFilesFromCheckListTargetPaths(String checkListFilePath) throws IOException {
-
+    static List<BackupTargetFile> collectAllFilesFromCheckListTargetPaths(Set<String> targetPathStrings) throws IOException {
         // Collect files
         Set<BackupTargetFile> allTargets = new HashSet<>();
-        Set<String> targetPathStrings = getTargetPathStringsFromCheckList(checkListFilePath);
         final AtomicLong counter = new AtomicLong();
         for (String targetPathString : targetPathStrings) {
             Path targetPath = new File(targetPathString).toPath();

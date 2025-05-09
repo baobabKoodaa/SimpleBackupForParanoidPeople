@@ -1,4 +1,3 @@
-/** Helper. */
 class Pair {
     long size;
     long count;
