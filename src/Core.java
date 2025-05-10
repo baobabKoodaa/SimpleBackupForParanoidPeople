@@ -74,7 +74,8 @@ public class Core {
         List<BackupTargetFile> allTargets = collectAllFilesFromCheckListTargetPaths(targetPathStrings);
         File repoFilesDir = getOrCreateRepoFilesDir(repositoryPath);
         Set<String> existing = loadKnownSetOfAlreadyBackupedUpFilesHashes(repoFilesDir);
-        HashMap<String, String> latestSnapshot = loadLatestSnapshotMap(repoFilesDir);
+        File latestSnapshotFile = getLatestSnapshotFile(repoFilesDir);
+        HashMap<String, String> latestSnapshot = loadSnapshotMap(latestSnapshotFile);
         int[] count = new int[2];
         final int FOUND = 1;
         final int NOT_FOUND = 0;
@@ -110,7 +111,8 @@ public class Core {
     static void detectDuplicates(String repositoryPath, int mbThreshold) throws IOException {
         System.out.println("Detecting duplicates based on latest snapshot file...");
         File repoFilesDir = getOrCreateRepoFilesDir(repositoryPath);
-        HashMap<String, String> latestSnapshot = loadLatestSnapshotMap(repoFilesDir);
+        File latestSnapshotFile = getLatestSnapshotFile(repoFilesDir);
+        HashMap<String, String> latestSnapshot = loadSnapshotMap(latestSnapshotFile);
 
         // Count duplicates
         ElementCounter reverseSnapshot = new ElementCounter();
@@ -167,10 +169,34 @@ public class Core {
         System.out.println("Total files in snapshot: " + totalC + " (" + uniqueC + " unique) (" + duplicateC + " duplicate).");
     }
 
+    static void compareSnapshots(String snapshot1PathString, String snapshot2PathString) throws IOException {
+        System.out.println("Comparing snapshots...");
+        HashMap<String, String> hashToPath1 = loadReverseSnapshotMap(new File(snapshot1PathString));
+        HashMap<String, String> hashToPath2 = loadReverseSnapshotMap(new File(snapshot2PathString));
+        List<String> discrepancies = new ArrayList<>();
+        for (String hash : hashToPath1.keySet()) {
+            if (hashToPath2.containsKey(hash)) {
+                continue;
+            }
+            discrepancies.add("Hash from snapshot1 not found in snapshot2: " + hashToPath1.get(hash));
+        }
+        for (String hash : hashToPath2.keySet()) {
+            if (hashToPath1.containsKey(hash)) {
+                continue;
+            }
+            discrepancies.add("Hash from snapshot2 not found in snapshot1: " + hashToPath2.get(hash));
+        }
+        Collections.sort(discrepancies);
+        for (String s : discrepancies) {
+            System.out.println(s);
+        }
+    }
+
     static void restoreBackup(String repositoryPath, String restoreLocation) throws IOException {
         // Get latest snapshot
         File repoFilesDir = getOrCreateRepoFilesDir(repositoryPath);
-        HashMap<String, String> latestSnapshot = loadLatestSnapshotMap(repoFilesDir);
+        File latestSnapshotFile = getLatestSnapshotFile(repoFilesDir);
+        HashMap<String, String> latestSnapshot = loadSnapshotMap(latestSnapshotFile);
         System.out.println("Number of repo files to restore: " + latestSnapshot.size());
 
         // Calculate total size for progress indicator
@@ -202,11 +228,9 @@ public class Core {
         progressIndicator.done();
     }
 
-    static HashMap<String, String> loadLatestSnapshotMap(File repoFilesDir) throws IOException {
-        HashMap<String, String> latestSnapshotMap = new HashMap<>();
-        File latestSnapshotFile = getLatestSnapshotFile(repoFilesDir);
-        // TODO refactor filereaders into a method which returns list of strings.
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(latestSnapshotFile), "UTF-8"))) {
+    static HashMap<String, String> loadSnapshotMap(File snapshotFile) throws IOException {
+        HashMap<String, String> snapshotMap = new HashMap<>();
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(snapshotFile), "UTF-8"))) {
             while (true) {
                 String line = br.readLine();
                 if (line == null) break;
@@ -218,10 +242,19 @@ public class Core {
                 }
                 String filePath = splitted[0];
                 String hash = splitted[1];
-                latestSnapshotMap.put(filePath, hash);
+                snapshotMap.put(filePath, hash);
             }
         }
-        return latestSnapshotMap;
+        return snapshotMap;
+    }
+
+    static HashMap<String, String> loadReverseSnapshotMap(File snapshotFile) throws IOException {
+        HashMap<String, String> snapshotMap = loadSnapshotMap(snapshotFile);
+        HashMap<String, String> reversed = new HashMap<>();
+        for (Map.Entry<String, String> entry : snapshotMap.entrySet()) {
+            reversed.put(entry.getValue(), entry.getKey());
+        }
+        return reversed;
     }
 
     /** Iterate snapshots in repo, return latest snapshot file. */

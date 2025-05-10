@@ -17,6 +17,7 @@ public class UI {
                 System.out.println("V: Verify backup");
                 System.out.println("R: Restore files from backup");
                 System.out.println("D: Detect duplicates");
+                System.out.println("C: Compare snapshots");
                 System.out.println("H: Help");
                 System.out.println("Q: Exit");
                 String mainMenuChoice = scanner.nextLine().trim().toUpperCase();
@@ -38,6 +39,12 @@ public class UI {
                     String repositoryPath = getRepositoryPath();
                     int mbThreshold = getMbThreshold();
                     Core.detectDuplicates(repositoryPath, mbThreshold);
+                } else if (mainMenuChoice.equals("C")) {
+                    System.out.println("Please enter path for snapshot 1/2 (e.g. E:\\backup\\filepath-snapshots\\snapshot-2018-12-31.txt");
+                    String snapshot1 = getSnapshotPath();
+                    System.out.println("Please enter path for snapshot 2/2 (e.g. E:\\backup\\filepath-snapshots\\snapshot-2018-12-31.txt");
+                    String snapshot2 = getSnapshotPath();
+                    Core.compareSnapshots(snapshot1, snapshot2);
                 } else if (mainMenuChoice.equals("H")) {
                     printHelp();
                 } else if (mainMenuChoice.equals("Q")) {
@@ -100,7 +107,6 @@ public class UI {
     }
 
     private String getSnapshotPath() {
-        System.out.println("Please enter path to the snapshot you wish to restore (e.g. E:\\backup\\filepath-snapshots\\snapshot-2018-12-31.txt");
         String snapshotPath = scanner.nextLine();
         if (!new File(snapshotPath).isFile()) {
             throw new IllegalArgumentException("Error! Given path is not an existing file: " + new File(snapshotPath).getAbsolutePath());
